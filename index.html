@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>WeAreAnts - Engie</title>
+        <script src="lib/vivagraph.js"></script>
+        <script src="lib/jquery-latest.min.js"></script>
+        
+
+        <script type='text/javascript'>
+
+            function onLoad() {
+
+                var graph = Viva.Graph.graph();
+
+                $.getJSON("graph.json", function(json) {
+
+                    json.nodes.forEach(function(node, index){
+                      graph.addNode(index, {label:node.label});
+                    });
+
+                    json.links.forEach(function(link){
+                      graph.addLink(link.source, link.target)
+                    })
+              
+
+                  var layout = Viva.Graph.Layout.forceDirected(graph, {
+                     springLength : 100,
+                     springCoeff : 0.00005,
+                     dragCoeff : 0.05,
+                     gravity : -1.2
+                  });
+
+                  var processingElement = document.getElementById('log');
+
+                  // we need to compute layout, but we don't want to freeze the browser
+                  precompute(500, renderGraph);
+
+                  function precompute(iterations, callback) {
+                    var i = 0;
+                    while (iterations > 0 && i < 10) {
+                      layout.step();
+                      iterations--;
+                      i++;
+                    }
+                    processingElement.innerHTML = 'Layout precompute: ' + iterations;
+                    if (iterations > 0) {
+                      setTimeout(function () {
+                          precompute(iterations, callback);
+                      }, 0); // keep going in next even cycle
+                    } else {
+                      callback();
+                    }
+                  }
+
+                  function renderGraph() {
+                    var graphics = Viva.Graph.View.webglGraphics();
+
+                    var renderer = Viva.Graph.View.renderer(graph, {
+                        layout   : layout,
+                        graphics   : graphics,
+                        renderLinks : true,
+                        prerender  : true
+                      });
+
+                    var nodeColor;
+                    var nodeSize;
+                    
+                    graphics.node(function (node) {
+                        if (node.data.label == "input"){
+                          nodeColor = 0x99CCFF;
+                          nodeSize = 100; 
+                        }
+                        else if (node.data.label == "output"){
+                          nodeColor = 0x99CCFF;
+                          nodeSize = 100; 
+                        }
+                        else {
+                          nodeColor = 0xFF3D3D;
+                          nodeSize = 12; 
+                        }
+                        return new WebglRectangle(nodeSize, nodeColor);
+                     });
+                    function WebglRectangle(size, color) {
+                        this.size = size;
+                        this.color = color;
+                    }
+                    graphics.link(function (edge) {
+                        return new Edge(3, nodeColor);
+                     });
+                    function Edge(size, color) {
+                        this.size = size;
+                        this.color = color;
+                    }
+
+                    renderer.run();
+
+                    // zoom out to fit it into the view:
+                    var graphRect = layout.getGraphRect();
+                    var graphSize = Math.min(graphRect.x2 - graphRect.x1, graphRect.y2 - graphRect.y1);
+                    var screenSize = Math.min(document.body.clientWidth, document.body.clientHeight);
+
+                    var desiredScale = screenSize / graphSize;
+                    zoomOut(desiredScale, 1);
+
+                    function zoomOut(desiredScale, currentScale) {
+                      if (desiredScale < currentScale) {
+                        currentScale = renderer.zoomOut();
+                        setTimeout(function () {
+                            zoomOut(desiredScale, currentScale);
+                        }, 16);
+                      }
+                    }
+                  }
+                })
+            }
+        </script>
+        <style type='text/css'>
+            body, html, canvas {
+                  top: 0;
+                  left:0;
+                  height: 100%;
+                  width: 100%;
+                  position: absolute;
+                  margin:0;
+                  overflow: hidden;
+            }
+            #log {
+              color: red;
+              font-size:13px;
+              position: absolute;
+              top: 0.5em;
+              left: 0.5em;
+              z-index: 1;
+            }
+            #logomap {
+              position: absolute;
+              width: 200px;
+              bottom: 2em;
+              left: 0.5em;
+              z-index: 1;
+            }
+        </style>
+    </head>
+    <body onload="onLoad()" style="background-color: black;">
+      <div id='log'></div>
+      <img id="logomap" src="logo.png">
+    </body>
+</html>
