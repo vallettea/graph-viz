@@ -34,16 +34,28 @@
                   var processingElement = document.getElementById('log');
 
                   // we need to compute layout, but we don't want to freeze the browser
-                  precompute(renderGraph);
+                  precompute(200, renderGraph);
 
-                  function precompute(callback) {
-                    $.getJSON("positions.json", function(positions) {
-                      graph.forEachNode(function(node){
-                        var pos = positions[node.id];
-                        layout.setNodePosition(node.id, pos.x, pos.y);
+                  function precompute(iterations, callback) {
+                    var i = 0;
+                    while (iterations > 0 && i < 10) {
+                      layout.step();
+                      iterations--;
+                      i++;
+                    }
+                    processingElement.innerHTML = 'Layout precompute: ' + iterations;
+                    if (iterations > 0) {
+                      setTimeout(function () {
+                          precompute(iterations, callback);
+                      }, 0); // keep going in next even cycle
+                    } else {
+                      var positions = {};
+                      graph.forEachNode(function(node) {
+                        positions[node.id] = layout.getNodePosition(node.id);
                       });
+                      console.log(JSON.stringify(positions));
                       callback();
-                    });
+                    }
                   }
 
                   function renderGraph() {
